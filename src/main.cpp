@@ -54,13 +54,7 @@ int main() {
         wave->update(1.5);
     }
 
-
-
-    for(size_t col = 0; col < keyboard->leds.size(); col++) {
-        for(size_t row = 0; row < keyboard->leds[col].size(); row++) {
-            keyboard->set_led(keyboard->leds[col][row], { 0x00, 0x00, 0x00 });
-        }
-    }
+    keyboard->draw_frame();
 
     for(size_t col = 0; col < mouse->leds.size(); col++) {
         for(size_t row = 0; row < mouse->leds[col].size(); row++) {

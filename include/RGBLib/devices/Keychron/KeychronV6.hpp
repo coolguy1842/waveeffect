@@ -5,11 +5,9 @@
 #include "../../util/bytes.hpp"
 
 #include <hidapi/hidapi.h>
+#include <cmath>
 
 #include "robin_hood.h"
-#include <math.h>
-#include <cmath>
-#include <map>
 
 const std::vector<std::vector<uint8_t>> KeychronV6LEDS = {
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
@@ -62,8 +60,8 @@ private:
 
     hid_device* device;
 
-    std::map<uint8_t, RGB> framebuffer;
-    std::map<uint8_t, RGB> emptyFramebuffer;
+    robin_hood::unordered_flat_map<uint8_t, RGB> framebuffer;
+    robin_hood::unordered_flat_map<uint8_t, RGB> emptyFramebuffer;
 
 protected:
     void initDevice() {
@@ -96,6 +94,12 @@ public:
         initDevice();
 
         emptyFramebuffer = {};
+        for(std::vector<uint8_t> col : leds) {
+            for(uint8_t index : col) {
+                emptyFramebuffer[index] = { 0x00, 0x00, 0x00 };
+            }
+        }
+
         framebuffer = emptyFramebuffer;
     }
 
@@ -126,7 +130,7 @@ public:
 
         size_t i = 0;
 
-        for(std::pair<uint8_t, RGB> pair : framebuffer) {
+        for(robin_hood::pair<uint8_t, RGB> pair : framebuffer) {
             unformattedPayload[i] = pair.first;
             unformattedPayload[i + 1] = pair.second.red;
             unformattedPayload[i + 2] = pair.second.green;
