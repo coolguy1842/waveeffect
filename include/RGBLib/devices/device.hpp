@@ -17,8 +17,6 @@ protected:
 
     hid_device* device;
     int initDevice() {
-        // weird issues on reconnecting for linux causing segfault
-        // maybe fix sometime
         hid_device_info* devices = hid_enumerate(VENDOR_ID, PRODUCT_ID);
         hid_device_info* current_device = devices;
 
@@ -39,7 +37,7 @@ protected:
         hid_free_enumeration(devices);
 
         if(!device) {
-            hid_close(device);
+            device = NULL;
 
             return -1;
         }
@@ -65,10 +63,13 @@ protected:
             while(this->deviceCheckerThreadActive) {
                 hid_device_info* info = hid_enumerate(VENDOR_ID, PRODUCT_ID);
                 if(!info || !device) {
+                    hid_free_enumeration(info);
+
                     if(device) {
                         printf("HID Device with VID PID %.4X:%.4X disconnected. trying to reconnect...\n", VENDOR_ID, PRODUCT_ID);
+
                         hid_close(this->device);
-                        this->device = nullptr;
+                        this->device = NULL;
                     }
 
                     if(this->initDevice() == 0) {
@@ -81,6 +82,10 @@ protected:
                     printf("Failed reconecting. Trying again in 5 seconds...\n");
                     std::this_thread::sleep_for(std::chrono::seconds(4));
                 }
+                else {
+                    hid_free_enumeration(info);
+                }
+
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
         });
@@ -113,7 +118,9 @@ public:
     ~Device() {
         stopCheckDeviceThread();
 
-        hid_close(device);
+        if(device) {
+            hid_close(device);
+        }
     }
 
     virtual void set_led(unsigned char led, RGB rgb) = 0;

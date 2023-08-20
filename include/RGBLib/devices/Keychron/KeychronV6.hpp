@@ -10,6 +10,7 @@
 #include <map>
 
 const size_t KeychronV6PayloadLength = 32;
+const size_t KeychronV6TotalLEDs = 108;
 
 const std::vector<std::vector<uint8_t>> KeychronV6LEDS = {
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
@@ -17,7 +18,7 @@ const std::vector<std::vector<uint8_t>> KeychronV6LEDS = {
     { 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60 },
     { 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 },
     { 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93 },
-    { 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107 },
+    { 94, 95, 96, 0xFF, 0xFF, 0xFF, 97, 0XFF, 0xFF, 0xFF, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107 },
 };
 
 enum KeychronV6PacketCommands {
@@ -68,6 +69,8 @@ public:
         emptyFramebuffer = {};
         for(std::vector<uint8_t> col : leds) {
             for(uint8_t index : col) {
+                if(index >= KeychronV6TotalLEDs) continue;
+
                 emptyFramebuffer[index] = { 0x00, 0x00, 0x00 };
             }
         }
@@ -76,6 +79,8 @@ public:
     }
 
     void set_led(uint8_t led, RGB rgb) {
+        if(led >= KeychronV6TotalLEDs) return;
+
         framebuffer[led] = rgb;
     }
 
@@ -125,16 +130,17 @@ public:
                 payload[KeychronV6PayloadLength - 1] = 0xFF;
             }
 
-            for(size_t j = 3; j < KeychronV6PayloadLength - 1 && bytesLeft - 1 > 0;) {
-                uint8_t index = unformattedPayload[unformattedPayloadLength - bytesLeft];
-                uint8_t* rgb = &(unformattedPayload[(unformattedPayloadLength - bytesLeft) + 1]);
+            for(size_t j = 3, k = unformattedPayloadLength - bytesLeft;
+                    j < KeychronV6PayloadLength - 1 && bytesLeft > 0;
+                    bytesLeft -= 4, k = unformattedPayloadLength - bytesLeft) {
+
+                uint8_t index = unformattedPayload[k];
+                uint8_t* rgb = &(unformattedPayload[k + 1]);
 
                 payload[j++] = index;
                 payload[j++] = rgb[0];
                 payload[j++] = rgb[1];
                 payload[j++] = rgb[2];
-
-                bytesLeft -= 4;
             }
 
             hid_write(device, payload, (KeychronV6PayloadLength + 1) * sizeof(uint8_t));

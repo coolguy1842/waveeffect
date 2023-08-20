@@ -24,7 +24,7 @@ public:
 
     void set_led(uint8_t led, RGB rgb) {
         if(!device) return;
-        
+
 #define HEADER_LENGTH 28
 #define BODY_LENGTH 7
 #define REPEAT_INDEX 22
@@ -37,20 +37,20 @@ public:
         unsigned char header[HEADER_LENGTH];
         for(int i = 0; i < HEADER_LENGTH; i++) {
             header[i] = 0.0f;
-        } 
-        
-        header[REPEAT_INDEX] = 0x01; 
+        }
+
+        header[REPEAT_INDEX] = 0x01;
         header[COLOURS_COUNT_INDEX] = 0x01; // gradient count(1)
 
         // led id indices
-        header[0] = led; 
+        header[0] = led;
         header[5] = led;
 
         unsigned char* bytearray = uint_to_little_endian_bytearray(DEFAULT_DURATION, DURATION_LENGTH);
-        
+
         for(int i = 0; i < DURATION_LENGTH; i++) {
             header[DURATION_INDEX + i] = bytearray[i];
-        } 
+        }
 
         free(bytearray);
 
@@ -75,14 +75,13 @@ public:
         merge_bytes(header, HEADER_LENGTH, body, BODY_LENGTH, &data, &dataLen);
 
         int reportLen = 3;
-        unsigned char* report = (unsigned char*)malloc(reportLen * sizeof(unsigned char));
+        unsigned char report[reportLen];
         report[0] = 0x00; // reportid
         report[1] = RIVAL600COMMANDS::SET_LED_COLOR; // command
         report[2] = 0x00; // command
 
         merge_bytes(report, reportLen, data, dataLen, &payload, &payloadLen);
         free(data);
-        free(report);
 
         hid_send_feature_report(device, payload, payloadLen * sizeof(unsigned char));
         free(payload);

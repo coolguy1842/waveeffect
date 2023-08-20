@@ -41,7 +41,12 @@ void mouseWaveUpdater(Rival600* mouse) {
     }
 }
 
-void cleanup(KeychronV6* keyboard, Rival600* mouse) {
+void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpdaterThread, std::thread* mouseWaveUpdaterThread) {
+    keyboardWaveUpdaterThread->join();
+    mouseWaveUpdaterThread->join();
+
+    usleep(1000 * 100);
+
     keyboard->draw_frame();
 
     for(size_t col = 0; col < mouse->leds.size(); col++) {
@@ -88,10 +93,7 @@ int main() {
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread mouseWaveUpdaterThread(mouseWaveUpdater, mouse);
 
-    keyboardWaveUpdaterThread.join();
-    mouseWaveUpdaterThread.join();
-
-    cleanup(keyboard, mouse);
+    cleanup(keyboard, mouse, &keyboardWaveUpdaterThread, &mouseWaveUpdaterThread);
 
     return 0;
 }
