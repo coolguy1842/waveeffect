@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(wave VERSION 0.1.0 LANGUAGES CXX)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb")
+
 include(CTest)
 enable_testing()
 

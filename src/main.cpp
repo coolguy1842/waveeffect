@@ -13,7 +13,7 @@ static Wave* wave;
 
 void keyboardWaveUpdater(KeychronV6* keyboard) {
     keyboard->set_effect();
-    
+
     while(wave->updaterThreadRunning()) {
         for(size_t col = 0; col < keyboard->leds.size(); col++) {
             for(size_t row = 0; row < keyboard->leds[col].size(); row++) {
@@ -27,7 +27,7 @@ void keyboardWaveUpdater(KeychronV6* keyboard) {
 
 void mouseWaveUpdater(Rival600* mouse) {
     size_t maxMouseRows = 0;
-    
+
     for(size_t i = 0; i < mouse->leds.size(); i++) {
         if(mouse->leds[i].size() > maxMouseRows) maxMouseRows = mouse->leds[i].size();
     }
@@ -87,7 +87,6 @@ int main() {
 
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread mouseWaveUpdaterThread(mouseWaveUpdater, mouse);
-
 
     keyboardWaveUpdaterThread.join();
     mouseWaveUpdaterThread.join();

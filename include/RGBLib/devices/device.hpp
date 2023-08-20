@@ -17,6 +17,8 @@ protected:
 
     hid_device* device;
     int initDevice() {
+        // weird issues on reconnecting for linux causing segfault
+        // maybe fix sometime
         hid_device_info* devices = hid_enumerate(VENDOR_ID, PRODUCT_ID);
         hid_device_info* current_device = devices;
 
@@ -27,7 +29,7 @@ protected:
             }
 
             if(current_device->usage_page == USAGE_PAGE && current_device->usage == USAGE) {
-                device = hid_open_path(current_device->path);   
+                device = hid_open_path(current_device->path);
                 break;
             }
 
@@ -38,6 +40,7 @@ protected:
 
         if(!device) {
             hid_close(device);
+
             return -1;
         }
 
@@ -64,20 +67,19 @@ protected:
                 if(!info || !device) {
                     if(device) {
                         printf("HID Device with VID PID %.4X:%.4X disconnected. trying to reconnect...\n", VENDOR_ID, PRODUCT_ID);
-
                         hid_close(this->device);
                         this->device = nullptr;
                     }
-                    
+
                     if(this->initDevice() == 0) {
                         printf("Sucessfully reconnected!\n");
                         this->onDeviceConnect();
-                        
+
                         continue;
                     }
 
                     printf("Failed reconecting. Trying again in 5 seconds...\n");
-                    std::this_thread::sleep_for(std::chrono::seconds(4));    
+                    std::this_thread::sleep_for(std::chrono::seconds(4));
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
@@ -89,14 +91,15 @@ public:
 
     const unsigned int VENDOR_ID;
     const unsigned int PRODUCT_ID;
-    
+
     const unsigned int USAGE_PAGE;
     const unsigned int USAGE;
 
 
-    Device(unsigned int VENDOR_ID, unsigned int PRODUCT_ID, unsigned int usage_page, unsigned int usage, std::vector<std::vector<uint8_t>> leds, std::function<void()> onDeviceConnect) : 
+    Device(unsigned int VENDOR_ID, unsigned int PRODUCT_ID, unsigned int usage_page, unsigned int usage, std::vector<std::vector<uint8_t>> leds, std::function<void()> onDeviceConnect) :
         VENDOR_ID(VENDOR_ID), PRODUCT_ID(PRODUCT_ID), USAGE_PAGE(usage_page), USAGE(usage), leds(leds), onDeviceConnect(onDeviceConnect) {
         initDevice();
+
         if(device) {
             this->onDeviceConnect();
         }
@@ -113,7 +116,7 @@ public:
         hid_close(device);
     }
 
-    virtual void set_led(unsigned char led, RGB rgb) = 0;  
+    virtual void set_led(unsigned char led, RGB rgb) = 0;
 };
 
 #endif
