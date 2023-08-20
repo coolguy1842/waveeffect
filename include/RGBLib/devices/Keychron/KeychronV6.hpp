@@ -9,6 +9,8 @@
 
 #include "robin_hood.h"
 
+const size_t KeychronV6PayloadLength = 32;
+
 const std::vector<std::vector<uint8_t>> KeychronV6LEDS = {
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
     { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 },
@@ -56,43 +58,13 @@ enum KeychronV6PacketChannels {
 
 class KeychronV6 : public Keyboard {
 private:
-    const size_t MAXPAYLOADLENGTH = 32;
-
-    hid_device* device;
-
     robin_hood::unordered_flat_map<uint8_t, RGB> framebuffer;
     robin_hood::unordered_flat_map<uint8_t, RGB> emptyFramebuffer;
 
-protected:
-    void initDevice() {
-        hid_device_info* devices = hid_enumerate(VENDOR_ID, PRODUCT_ID);
-        hid_device_info* current_device = devices;
-
-        while(current_device) {
-            if(current_device->usage_page == USAGE_PAGE && current_device->usage == USAGE) {
-                device = hid_open_path(current_device->path);
-                
-                break;
-            }
-
-            current_device = current_device->next;
-        }
-
-        hid_free_enumeration(devices);
-
-        if(!device) {
-            fprintf(stderr, "FAILED TO OPEN KeychronV6\n");
-
-            hid_close(device);
-
-            abort();
-        }
-    }
-
 public:
-    KeychronV6() : Keyboard(0x3434, 0x0361, 0xFF60, 0x61, KeychronV6LEDS) {
-        initDevice();
-
+    KeychronV6() : Keyboard(0x3434, 0x0361, 0xFF60, 0x61, KeychronV6LEDS, [this]() -> void {
+        this->set_effect();
+    }) {
         emptyFramebuffer = {};
         for(std::vector<uint8_t> col : leds) {
             for(uint8_t index : col) {
@@ -103,26 +75,26 @@ public:
         framebuffer = emptyFramebuffer;
     }
 
-    ~KeychronV6() {
-        hid_close(device);
-    }
-
     void set_led(uint8_t led, RGB rgb) {
         framebuffer[led] = rgb;
     }
 
     void set_effect() {
-        uint8_t payload[MAXPAYLOADLENGTH];
-        std::memset(payload, 0x00, MAXPAYLOADLENGTH);
+        if(!device) return;
+
+        uint8_t payload[KeychronV6PayloadLength];
+        std::memset(payload, 0x00, KeychronV6PayloadLength);
 
         payload[0] = 0x00;
         payload[1] = KeychronV6PacketCommands::id_custom_set_value;
         payload[2] = KeychronV6PacketChannels::id_custom_set_effect_channel;
 
-        hid_write(device, payload, MAXPAYLOADLENGTH * sizeof(uint8_t));
+        hid_write(device, payload, KeychronV6PayloadLength * sizeof(uint8_t));
     }
 
     void draw_frame() {
+        if(!device) return;
+        
         const size_t leds = framebuffer.size();
 
         size_t unformattedPayloadLength = (leds * (sizeof(RGB) + 1));
@@ -139,25 +111,25 @@ public:
             i += 4;
         }
 
-        size_t totalPayloads = std::ceil((double)(unformattedPayloadLength + 4) / (double)(MAXPAYLOADLENGTH));
+        size_t totalPayloads = std::ceil((double)(unformattedPayloadLength + 4) / (double)(KeychronV6PayloadLength));
         long long bytesLeft = (long long)unformattedPayloadLength;
             
         for(size_t i = 0; i < totalPayloads; i++) {
-            uint8_t payload[MAXPAYLOADLENGTH];
-            std::memset(payload, 0x00, MAXPAYLOADLENGTH);
+            uint8_t payload[KeychronV6PayloadLength];
+            std::memset(payload, 0x00, KeychronV6PayloadLength);
 
             payload[0] = 0x00;
             payload[1] = KeychronV6PacketCommands::id_custom_set_value;
             payload[2] = KeychronV6PacketChannels::id_custom_array_led_channel;
 
-            if(bytesLeft < MAXPAYLOADLENGTH - 3) {
+            if(bytesLeft < KeychronV6PayloadLength - 3) {
                 payload[bytesLeft + 3] = 0xFF;
             }
             else {
-                payload[MAXPAYLOADLENGTH - 1] = 0xFF;
+                payload[KeychronV6PayloadLength - 1] = 0xFF;
             }
 
-            for(size_t j = 3, k = 0; j < MAXPAYLOADLENGTH - 1 && bytesLeft - 1 > 0; j += 4) {
+            for(size_t j = 3, k = 0; j < KeychronV6PayloadLength - 1 && bytesLeft - 1 > 0; j += 4) {
                 uint8_t index = unformattedPayload[unformattedPayloadLength - bytesLeft];
                 uint8_t* rgb = &(unformattedPayload[(unformattedPayloadLength - bytesLeft) + 1]);
 
@@ -170,7 +142,7 @@ public:
                 k += 4;
             }
 
-            hid_write(device, payload, MAXPAYLOADLENGTH * sizeof(uint8_t));
+            hid_write(device, payload, KeychronV6PayloadLength * sizeof(uint8_t));
         }
 
         framebuffer = emptyFramebuffer;

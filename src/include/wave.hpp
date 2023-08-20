@@ -1,9 +1,37 @@
 #ifndef __WAVE_HPP__
 #define __WAVE_HPP__
 
+#include <chrono>
 #include <stdint.h>
 #include "RGBLib/util/rgb.hpp"
 #include "RGBLib/util/hsv.hpp"
+
+#include <thread>
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+
+
+#include <windows.h>
+
+void sleepfunc(__int64 usec) { 
+    HANDLE timer; 
+    LARGE_INTEGER ft; 
+
+    ft.QuadPart = -(10*usec); // Convert to 100 nanosecond interval, negative value indicates relative time
+
+    timer = CreateWaitableTimer(NULL, TRUE, NULL); 
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0); 
+    WaitForSingleObject(timer, INFINITE); 
+    CloseHandle(timer); 
+}
+
+#else
+void sleepfunc(__int64 usec) {
+    usleep(usec);
+}
+
+#endif
+
 
 enum WaveDirection {
     WAVELEFT = 0,
@@ -17,7 +45,6 @@ private:
 
     HSV currentHSV;
     WaveDirection direction;
-
 public:
     WaveRow(HSV currentHSV, HSV minHSV, HSV maxHSV, WaveDirection direction) {
         this->currentHSV = currentHSV;
@@ -56,6 +83,8 @@ private:
     double refreshRate;
     WaveDirection direction;
 
+    bool runUpdaterThread;
+    std::thread updaterThread;
 
     HSV maxHSV;
     HSV minHSV;
@@ -92,9 +121,47 @@ public:
         this->maxHSV = maxHSV;
 
         init();
+
+        this->runUpdaterThread = false;
     }
 
+    
+    void stopUpdaterThread() {
+        if(!runUpdaterThread) return;
+
+        runUpdaterThread = false;
+        updaterThread.join();
+    }
+
+    void startUpdaterThread(const double shiftAmount) {
+        if(runUpdaterThread) return;
+
+        runUpdaterThread = true;
+        updaterThread = std::thread([this, shiftAmount]() -> void {
+            HSV addHSV = {
+                ((maxHSV.H - minHSV.H) / rowsLen) * shiftAmount,
+                ((maxHSV.S - minHSV.S) / rowsLen) * shiftAmount,
+                ((maxHSV.V - minHSV.V) / rowsLen) * shiftAmount
+            };
+
+            while (runUpdaterThread) {
+                for(size_t i = 0; i < rowsLen; i++) {
+                    rows[i].update(addHSV);
+                }
+                
+                usleep(1000 * (1000 / refreshRate));
+            }
+        });
+    }
+
+    bool updaterThreadRunning() {
+        return this->runUpdaterThread;
+    }
+
+
     ~Wave() {
+        stopUpdaterThread();
+
         free(rows);
     }
 
@@ -114,6 +181,9 @@ public:
             rows[i].update(addHSV);
         }
     }
+
+
+    size_t getRowsLen() { return this->rowsLen; }
 };
 
 #endif

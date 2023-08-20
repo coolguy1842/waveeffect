@@ -19,35 +19,12 @@ enum RIVAL600COMMANDS {
 
 
 class Rival600 : public Mouse {
-private:
-    hid_device* device;
-
-protected:
-    void initDevice() {
-        device = hid_open(VENDOR_ID, PRODUCT_ID, NULL);
-
-        if(!device) {
-            fprintf(stderr, "FAILED TO OPEN RIVAL600\n");
-
-            hid_close(device);
-
-            abort();
-        }
-    }
-
 public:
-    Rival600() : Mouse(0x1038, 0x1724, 0x00, 0x00, Rival600LEDS) {
-        initDevice();
-
-        hid_device_info* info = hid_get_device_info(device);
-    }
-
-    ~Rival600() {
-        hid_close(device);
-    }
-
+    Rival600() : Mouse(0x1038, 0x1724, 0x00, 0x00, Rival600LEDS, [this]() -> void {}) {}
 
     void set_led(uint8_t led, RGB rgb) {
+        if(!device) return;
+        
 #define HEADER_LENGTH 28
 #define BODY_LENGTH 7
 #define REPEAT_INDEX 22
