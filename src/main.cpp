@@ -59,6 +59,8 @@ void cleanup(KeychronV6* keyboard, Rival600* mouse) {
 
 
 void onSIGINT(int signal) {
+    printf("SIGINT RECEIVED! SHUTTING DOWN...\n");
+
     wave->stopUpdaterThread();
 }
 
