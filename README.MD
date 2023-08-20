@@ -1,5 +1,7 @@
 # Wave
 
+Requires [hidapi](https://github.com/libusb/hidapi) from [libusb](https://github.com/libusb)<br>
+
 I made this as a successor to my [RazerSteelseriesWaveEffect2](https://github.com/coolguy1842/RazerSteelseriesWaveEffect2) as I got a new Keychron V6<br>
 this requires custom firmware changes to the V6 in QMK<br>
 
