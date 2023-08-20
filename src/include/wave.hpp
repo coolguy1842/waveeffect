@@ -19,6 +19,7 @@ private:
     HSV minHSV;
 
     HSV currentHSV;
+    WaveDirection waveDirection;
     WaveDirection direction;
 public:
     WaveRow(HSV currentHSV, HSV minHSV, HSV maxHSV, WaveDirection direction) {
@@ -26,13 +27,14 @@ public:
         this->minHSV = minHSV;
         this->maxHSV = maxHSV;
 
+        this->waveDirection = direction;
         this->direction = direction;
     }
 
     void update(HSV shiftAmount) {
-        currentHSV.H += shiftAmount.H * (direction == WaveDirection::WAVERIGHT ? -4 : 1);
-        currentHSV.S += shiftAmount.S * (direction == WaveDirection::WAVERIGHT ? -4 : 1);
-        currentHSV.V += shiftAmount.V * (direction == WaveDirection::WAVERIGHT ? -4 : 1);
+        currentHSV.H += shiftAmount.H * (direction != waveDirection ? -4 : 1);
+        currentHSV.S += shiftAmount.S * (direction != waveDirection ? -4 : 1);
+        currentHSV.V += shiftAmount.V * (direction != waveDirection ? -4 : 1);
 
         if(currentHSV.H > maxHSV.H) {
             currentHSV = maxHSV;
@@ -54,7 +56,7 @@ class Wave {
 private:
     WaveRow* rows;
     size_t rowsLen;
-    
+
     double refreshRate;
     WaveDirection direction;
 
@@ -64,14 +66,13 @@ private:
     HSV maxHSV;
     HSV minHSV;
 
-
     void init() {
         HSV rowHSV = minHSV;
 
         HSV addHSV = {
-            ((maxHSV.H - minHSV.H) / rowsLen),
-            ((maxHSV.S - minHSV.S) / rowsLen),
-            ((maxHSV.V - minHSV.V) / rowsLen)
+            (maxHSV.H - minHSV.H) / rowsLen,
+            (maxHSV.S - minHSV.S) / rowsLen,
+            (maxHSV.V - minHSV.V) / rowsLen
         };
 
         for(
@@ -80,7 +81,7 @@ private:
                 rowHSV.S += addHSV.S,
                 rowHSV.V += addHSV.V,
                 i++) {
-            rows[i] = WaveRow(rowHSV, minHSV, maxHSV, WaveDirection::WAVELEFT);
+            rows[i] = WaveRow(rowHSV, minHSV, maxHSV, this->direction);
         }
     }
 
@@ -100,7 +101,7 @@ public:
         this->runUpdaterThread = false;
     }
 
-    
+
     void stopUpdaterThread() {
         if(!runUpdaterThread) return;
 
@@ -114,16 +115,16 @@ public:
         runUpdaterThread = true;
         updaterThread = std::thread([this, shiftAmount]() -> void {
             HSV addHSV = {
-                ((maxHSV.H - minHSV.H) / rowsLen) * shiftAmount,
-                ((maxHSV.S - minHSV.S) / rowsLen) * shiftAmount,
-                ((maxHSV.V - minHSV.V) / rowsLen) * shiftAmount
+                (((maxHSV.H - minHSV.H) / rowsLen) * shiftAmount) * (direction == WaveDirection::WAVELEFT ? 1 : -1),
+                (((maxHSV.S - minHSV.S) / rowsLen) * shiftAmount) * (direction == WaveDirection::WAVELEFT ? 1 : -1),
+                (((maxHSV.V - minHSV.V) / rowsLen) * shiftAmount) * (direction == WaveDirection::WAVELEFT ? 1 : -1)
             };
 
             while (runUpdaterThread) {
                 for(size_t i = 0; i < rowsLen; i++) {
                     rows[i].update(addHSV);
                 }
-                
+
                 usleep(1000 * (1000 / refreshRate));
             }
         });
