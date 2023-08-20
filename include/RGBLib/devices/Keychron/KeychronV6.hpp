@@ -98,7 +98,7 @@ public:
         const size_t leds = framebuffer.size();
 
         size_t unformattedPayloadLength = (leds * (sizeof(RGB) + 1));
-        uint8_t unformattedPayload[leds * (sizeof(RGB) + 1)];
+        uint8_t unformattedPayload[unformattedPayloadLength];
 
         size_t i = 0;
 
@@ -111,7 +111,7 @@ public:
             i += 4;
         }
 
-        size_t totalPayloads = std::ceil((double)(unformattedPayloadLength + 4) / (double)(KeychronV6PayloadLength));
+        size_t totalPayloads = std::ceil((double)(unformattedPayloadLength) / (double)(KeychronV6PayloadLength - 3));
         long long bytesLeft = (long long)unformattedPayloadLength;
             
         for(size_t i = 0; i < totalPayloads; i++) {
