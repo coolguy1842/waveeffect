@@ -78,6 +78,9 @@ public:
         framebuffer = emptyFramebuffer;
     }
 
+    virtual ~KeychronV6() {}
+
+
     void set_led(uint8_t led, RGB rgb) {
         if(led >= KeychronV6TotalLEDs) return;
 
@@ -116,6 +119,8 @@ public:
         size_t totalPayloads = std::ceil((double)(unformattedPayloadLength) / (double)(KeychronV6PayloadLength - 4));
         long long bytesLeft = (long long)unformattedPayloadLength;
 
+        if(!deviceMutex.try_lock()) return;
+
         for(size_t i = 0; i < totalPayloads; i++) {
             uint8_t payload[KeychronV6PayloadLength + 1];
             std::memset(payload, 0x00, KeychronV6PayloadLength + 1);
@@ -123,7 +128,7 @@ public:
             payload[1] = KeychronV6PacketCommands::id_custom_set_value;
             payload[2] = KeychronV6PacketChannels::id_custom_array_led_channel;
 
-            if(bytesLeft < KeychronV6PayloadLength - 3) {
+            if((size_t)bytesLeft < KeychronV6PayloadLength - 3) {
                 payload[bytesLeft + 3] = 0xFF;
             }
             else {
@@ -145,6 +150,8 @@ public:
 
             hid_write(device, payload, (KeychronV6PayloadLength + 1) * sizeof(uint8_t));
         }
+
+        deviceMutex.unlock();
 
         framebuffer = emptyFramebuffer;
     }

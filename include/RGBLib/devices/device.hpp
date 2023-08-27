@@ -7,6 +7,7 @@
 #include <vector>
 #include <functional>
 #include <stdexcept>
+#include <mutex>
 
 #include <hidapi/hidapi.h>
 #include <stdint.h>
@@ -15,7 +16,9 @@ class Device {
 protected:
     std::function<void()> onDeviceConnect;
 
+    std::mutex deviceMutex;
     hid_device* device;
+
     int initDevice() {
         hid_device_info* devices = hid_enumerate(VENDOR_ID, PRODUCT_ID);
         hid_device_info* current_device = devices;
@@ -63,6 +66,7 @@ protected:
             while(this->deviceCheckerThreadActive) {
                 hid_device_info* info = hid_enumerate(VENDOR_ID, PRODUCT_ID);
                 if(!info || !device) {
+                    deviceMutex.lock();
                     hid_free_enumeration(info);
 
                     if(device) {
@@ -76,8 +80,12 @@ protected:
                         printf("Sucessfully reconnected!\n");
                         this->onDeviceConnect();
 
+                        deviceMutex.unlock();
+
                         continue;
                     }
+
+                    deviceMutex.unlock();
 
                     printf("Failed reconecting. Trying again in 5 seconds...\n");
                     std::this_thread::sleep_for(std::chrono::seconds(4));
@@ -92,17 +100,16 @@ protected:
     }
 
 public:
-    const std::vector<std::vector<uint8_t>> leds;
-
     const unsigned int VENDOR_ID;
     const unsigned int PRODUCT_ID;
 
     const unsigned int USAGE_PAGE;
     const unsigned int USAGE;
 
+    const std::vector<std::vector<uint8_t>> leds;
 
     Device(unsigned int VENDOR_ID, unsigned int PRODUCT_ID, unsigned int usage_page, unsigned int usage, std::vector<std::vector<uint8_t>> leds, std::function<void()> onDeviceConnect) :
-        VENDOR_ID(VENDOR_ID), PRODUCT_ID(PRODUCT_ID), USAGE_PAGE(usage_page), USAGE(usage), leds(leds), onDeviceConnect(onDeviceConnect) {
+        onDeviceConnect(onDeviceConnect), VENDOR_ID(VENDOR_ID), PRODUCT_ID(PRODUCT_ID), USAGE_PAGE(usage_page), USAGE(usage), leds(leds) {
         initDevice();
 
         if(device) {

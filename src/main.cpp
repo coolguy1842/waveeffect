@@ -63,7 +63,7 @@ void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpd
 }
 
 
-void onSIGINT(int signal) {
+void onSIGINT(int) {
     printf("SIGINT RECEIVED! SHUTTING DOWN...\n");
 
     wave->stopUpdaterThread();
@@ -88,7 +88,7 @@ int main() {
     }
 
     wave = new Wave(maxKeyboardRows + maxMouseRows, {240, 1, 1}, {284, 1, 1}, 120, WaveDirection::WAVELEFT);
-    wave->startUpdaterThread(0.2);
+    wave->startUpdaterThread(0.15);
 
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread mouseWaveUpdaterThread(mouseWaveUpdater, mouse);
