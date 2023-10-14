@@ -16,12 +16,14 @@ void keyboardWaveUpdater(KeychronV6* keyboard) {
 
     while(wave->updaterThreadRunning()) {
         for(size_t col = 0; col < keyboard->getCols(); col++) {
-            keyboard->set_led(col, wave->getRGB(col));
+            keyboard->set_col(col, wave->getRGB(col));
         }
 
         // printf("drawing frame\n");
         keyboard->draw_frame();
         // printf("drew frame\n");
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000/30));
     }
 }
 
@@ -38,6 +40,8 @@ void mouseWaveUpdater(Rival600* mouse) {
                 mouse->set_led(mouse->leds[col][row], wave->getRGB(row + (wave->getRowsLen() - maxMouseRows)));
             }
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000/30));
     }
 }
 
