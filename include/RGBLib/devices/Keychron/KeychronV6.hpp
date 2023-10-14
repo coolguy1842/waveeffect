@@ -13,13 +13,16 @@ const size_t KeychronV6PayloadLength = 32;
 const size_t KeychronV6TotalLEDs = 108;
 
 const std::vector<std::vector<uint8_t>> KeychronV6LEDS = {
-    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 },
-    { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 },
-    { 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60 },
-    { 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 },
-    { 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93 },
-    { 94, 95, 96, 0xFF, 0xFF, 0xFF, 97, 0XFF, 0xFF, 0xFF, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
+
+const uint8_t KeychronV6Cols = 22;
+const uint8_t KeychronV6Rows = 6;
 
 enum KeychronV6PacketCommands {
     id_get_protocol_version                 = 0x01, // always 0x01
@@ -54,7 +57,9 @@ enum KeychronV6PacketChannels {
     id_qmk_audio_channel         = 4,
     id_custom_set_effect_channel = 5,
     id_custom_array_led_channel  = 6,
-    id_custom_single_led_channel = 7
+    id_custom_single_led_channel = 7,
+    id_custom_single_col_channel = 8,
+    id_custom_array_col_channel = 9,
 };
 
 class KeychronV6 : public Keyboard {
@@ -67,12 +72,8 @@ public:
         this->set_effect();
     }) {
         emptyFramebuffer = {};
-        for(std::vector<uint8_t> col : leds) {
-            for(uint8_t index : col) {
-                if(index >= KeychronV6TotalLEDs) continue;
-
-                emptyFramebuffer[index] = { 0x00, 0x00, 0x00 };
-            }
+        for(uint8_t col = 0; col < KeychronV6Cols; col++) {
+            emptyFramebuffer[col] = { 0x00, 0x00, 0x00 };
         }
 
         framebuffer = emptyFramebuffer;
@@ -81,30 +82,44 @@ public:
     virtual ~KeychronV6() {}
 
 
-    void set_led(uint8_t led, RGB rgb) {
-        if(led >= KeychronV6TotalLEDs) return;
+    uint8_t getCols() { return KeychronV6Cols; }
+    uint8_t getRows() { return KeychronV6Rows; }
 
-        framebuffer[led] = rgb;
+    void set_col(uint8_t col, RGB rgb) {
+        if(col >= KeychronV6Cols) return;
+
+        framebuffer[col] = rgb;
+    }
+
+    void set_led(uint8_t col, RGB rgb) {
+        if(col >= KeychronV6Cols) return;
+
+        framebuffer[col] = rgb;
     }
 
     void set_effect() {
         if(!device) return;
 
-        uint8_t payload[KeychronV6PayloadLength];
-        std::memset(payload, 0x00, KeychronV6PayloadLength);
+        deviceMutex.lock();
+
+        uint8_t payload[KeychronV6PayloadLength + 1];
+        std::memset(payload, 0x00, KeychronV6PayloadLength + 1);
 
         payload[1] = KeychronV6PacketCommands::id_custom_set_value;
         payload[2] = KeychronV6PacketChannels::id_custom_set_effect_channel;
 
-        hid_write(device, payload, KeychronV6PayloadLength * sizeof(uint8_t));
+        hid_write(device, payload, (KeychronV6PayloadLength + 1) * sizeof(uint8_t));
+
+        deviceMutex.unlock();
     }
 
     void draw_frame() {
         if(!device) return;
+        if(!deviceMutex.try_lock()) return;
 
-        const size_t leds = framebuffer.size();
+        const size_t cols = framebuffer.size();
 
-        size_t unformattedPayloadLength = (leds * (sizeof(RGB) + 1));
+        size_t unformattedPayloadLength = (cols * (sizeof(RGB) + 1));
         uint8_t unformattedPayload[unformattedPayloadLength];
 
         size_t i = 0;
@@ -119,14 +134,12 @@ public:
         size_t totalPayloads = std::ceil((double)(unformattedPayloadLength) / (double)(KeychronV6PayloadLength - 4));
         long long bytesLeft = (long long)unformattedPayloadLength;
 
-        if(!deviceMutex.try_lock()) return;
-
         for(size_t i = 0; i < totalPayloads; i++) {
             uint8_t payload[KeychronV6PayloadLength + 1];
             std::memset(payload, 0x00, KeychronV6PayloadLength + 1);
 
             payload[1] = KeychronV6PacketCommands::id_custom_set_value;
-            payload[2] = KeychronV6PacketChannels::id_custom_array_led_channel;
+            payload[2] = KeychronV6PacketChannels::id_custom_array_col_channel;
 
             if((size_t)bytesLeft < KeychronV6PayloadLength - 3) {
                 payload[bytesLeft + 3] = 0xFF;
@@ -148,12 +161,14 @@ public:
                 payload[j++] = rgb[2];
             }
 
-            hid_write(device, payload, (KeychronV6PayloadLength + 1) * sizeof(uint8_t));
+            if(hid_write(device, payload, (KeychronV6PayloadLength + 1) * sizeof(uint8_t)) == -1) {
+                return;
+            }
         }
 
-        deviceMutex.unlock();
-
         framebuffer = emptyFramebuffer;
+
+        deviceMutex.unlock();
     }
 };
 

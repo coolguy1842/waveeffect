@@ -3,6 +3,7 @@
 
 #include "../util/rgb.hpp"
 
+#include <string.h>
 #include <thread>
 #include <vector>
 #include <functional>
@@ -18,6 +19,7 @@ protected:
 
     std::mutex deviceMutex;
     hid_device* device;
+    char device_path[512];
 
     int initDevice() {
         hid_device_info* devices = hid_enumerate(VENDOR_ID, PRODUCT_ID);
@@ -26,11 +28,19 @@ protected:
         while(current_device) {
             if(USAGE_PAGE == 0x00 && USAGE == 0x00) {
                 device = hid_open_path(current_device->path);
+
+                memset(device_path, '\0', sizeof(device_path));
+                strcpy(device_path, current_device->path);
+
                 break;
             }
 
             if(current_device->usage_page == USAGE_PAGE && current_device->usage == USAGE) {
                 device = hid_open_path(current_device->path);
+
+                memset(device_path, '\0', sizeof(device_path));
+                strcpy(device_path, current_device->path);
+
                 break;
             }
 
@@ -64,10 +74,12 @@ protected:
 
         deviceCheckerThread = std::thread([this]() -> void {
             while(this->deviceCheckerThreadActive) {
-                hid_device_info* info = hid_enumerate(VENDOR_ID, PRODUCT_ID);
-                if(!info || !device) {
+                hid_device* check_device = hid_open_path(this->device_path);
+
+                if(!check_device || !device) {
+                    hid_close(check_device);
+
                     deviceMutex.lock();
-                    hid_free_enumeration(info);
 
                     if(device) {
                         printf("HID Device with VID PID %.4X:%.4X disconnected. trying to reconnect...\n", VENDOR_ID, PRODUCT_ID);
@@ -78,9 +90,9 @@ protected:
 
                     if(this->initDevice() == 0) {
                         printf("Sucessfully reconnected!\n");
-                        this->onDeviceConnect();
 
                         deviceMutex.unlock();
+                        this->onDeviceConnect();
 
                         continue;
                     }
@@ -91,7 +103,7 @@ protected:
                     std::this_thread::sleep_for(std::chrono::seconds(4));
                 }
                 else {
-                    hid_free_enumeration(info);
+                    hid_close(check_device);
                 }
 
                 std::this_thread::sleep_for(std::chrono::seconds(1));

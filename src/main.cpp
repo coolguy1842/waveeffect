@@ -15,13 +15,13 @@ void keyboardWaveUpdater(KeychronV6* keyboard) {
     keyboard->set_effect();
 
     while(wave->updaterThreadRunning()) {
-        for(size_t col = 0; col < keyboard->leds.size(); col++) {
-            for(size_t row = 0; row < keyboard->leds[col].size(); row++) {
-                keyboard->set_led(keyboard->leds[col][row], wave->getRGB(row));
-            }
+        for(size_t col = 0; col < keyboard->getCols(); col++) {
+            keyboard->set_led(col, wave->getRGB(col));
         }
 
+        // printf("drawing frame\n");
         keyboard->draw_frame();
+        // printf("drew frame\n");
     }
 }
 
