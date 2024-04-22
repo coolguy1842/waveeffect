@@ -1,6 +1,6 @@
 .vscode
 build
-build/*
+builddir
 
 build.bat
 build.sh

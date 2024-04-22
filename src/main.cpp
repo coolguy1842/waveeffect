@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include "wave.hpp"
+#include "virt_utils.hpp"
 
 
 static Wave* wave;
@@ -14,16 +15,21 @@ static Wave* wave;
 void keyboardWaveUpdater(KeychronV6* keyboard) {
     keyboard->set_effect();
 
+    size_t frame = 0;
     while(wave->updaterThreadRunning()) {
+        // set around every 5 seconds
+        if(frame % (30 * 5) == 0) {
+            keyboard->set_effect();
+        }
+
         for(size_t col = 0; col < keyboard->getCols(); col++) {
             keyboard->set_col(col, wave->getRGB(col));
         }
 
-        // printf("drawing frame\n");
         keyboard->draw_frame();
-        // printf("drew frame\n");
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000/30));
+        frame++;
     }
 }
 
@@ -45,11 +51,15 @@ void mouseWaveUpdater(Rival600* mouse) {
     }
 }
 
-void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpdaterThread, std::thread* mouseWaveUpdaterThread) {
+void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpdaterThread, std::thread* mouseWaveUpdaterThread, std::thread* virtCheckerThread) {
     keyboardWaveUpdaterThread->join();
     mouseWaveUpdaterThread->join();
 
     usleep(1000 * 100);
+
+    for(std::pair<const uint8_t, RGB> pair : keyboard->get_custom_leds()) {
+        keyboard->unset_custom_led(pair.first);
+    }
 
     keyboard->draw_frame();
 
@@ -58,6 +68,8 @@ void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpd
             mouse->set_led(mouse->leds[col][row], { 0x00, 0x00, 0x00 });
         }
     }
+
+    virtCheckerThread->join();
 
     delete keyboard;
     delete mouse;
@@ -97,7 +109,24 @@ int main() {
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread mouseWaveUpdaterThread(mouseWaveUpdater, mouse);
 
-    cleanup(keyboard, mouse, &keyboardWaveUpdaterThread, &mouseWaveUpdaterThread);
+    std::thread virtCheckerThread([](KeychronV6* keyboard) -> void {
+        VirtConnection con = VirtConnection("qemu:///system");
+
+        while(wave->updaterThreadRunning()) {
+            bool isOn = VirtUtils::VirtualMachineOn(con, "win10");
+            if(isOn) {
+                keyboard->unset_custom_led(14);
+            }
+            else {
+                keyboard->set_custom_led(14, { 69, 3, 1 });
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+    }, keyboard);
+
+    cleanup(keyboard, mouse, &keyboardWaveUpdaterThread, &mouseWaveUpdaterThread, &virtCheckerThread);
 
     return 0;
 }

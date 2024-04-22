@@ -13,6 +13,9 @@
 #include <hidapi/hidapi.h>
 #include <stdint.h>
 
+#include <optional>
+#include <map>
+
 class Device {
 protected:
     std::function<void()> onDeviceConnect;
@@ -111,6 +114,8 @@ protected:
         });
     }
 
+    // devices need to implement this themselves
+    std::map<uint8_t, RGB> custom_leds;
 public:
     const unsigned int VENDOR_ID;
     const unsigned int PRODUCT_ID;
@@ -143,6 +148,28 @@ public:
     }
 
     virtual void set_led(unsigned char led, RGB rgb) = 0;
+
+
+    std::map<uint8_t, RGB> get_custom_leds() {
+        return custom_leds;
+    }
+
+    void set_custom_led(unsigned char led, RGB rgb) {
+        custom_leds[led] = rgb;
+    }
+
+    void unset_custom_led(unsigned char led) {
+        if(custom_leds.find(led) == custom_leds.end()) return;
+        custom_leds.erase(custom_leds.find(led));
+    }
+
+    std::optional<RGB> get_custom_led(unsigned char led) {
+        if(custom_leds.find(led) == custom_leds.end()) {
+            return std::optional<RGB>();
+        }
+
+        return std::optional<RGB>(custom_leds[led]);
+    }
 };
 
 #endif

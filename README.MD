@@ -13,7 +13,12 @@ If you have not done this run through the [QMK Setup Guide](https://docs.qmk.fm/
 
 ### Firmware Changes
 
-add the following code to your keymap.c
+add this to rules.mk
+```mk
+RGB_MATRIX_CUSTOM_USER = yes
+```
+
+then add this code to your keymap.c
 
 ```CPP
 enum custom_channel_ids {
@@ -22,6 +27,7 @@ enum custom_channel_ids {
     id_custom_single_led_channel = 7,
     id_custom_single_col_channel = 8,
     id_custom_array_col_channel = 9,
+    id_custom_draw_channel = 10,
 };
 
 #define WAVE_COLS 22
@@ -51,6 +57,8 @@ const uint16_t PROGMEM cols[WAVE_COLS][MATRIX_ROWS] = {
     { 0xFF, 40,   0xFF, 0xFF, 0xFF, 0xFF }
 };
 
+uint8_t frame[MATRIX_COLS * MATRIX_ROWS][3] = {};
+
 
 void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
     uint8_t* command_id = &(data[0]);
@@ -70,12 +78,12 @@ void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
     case id_custom_array_led_channel: {
         switch (*command_id) {
             case id_custom_set_value: {
-                for(int i = 2; i < length; i += 4) {
+                for(uint16_t i = 2; i < length; i += 4) {
                     uint8_t index = data[i];
                     if(index >= RGB_MATRIX_LED_COUNT) break;
-                    uint8_t* rgb = &(data[i + 1]);
 
-                    rgb_matrix_set_color(index, rgb[0], rgb[1], rgb[2]);
+                    uint8_t* rgb = &(data[i + 1]);
+                    memcpy(frame[index], rgb, 3 * sizeof(uint8_t));
                 }
 
                 break;
@@ -94,9 +102,9 @@ void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
             case id_custom_set_value: {
                 uint8_t index = data[2];
                 if(index >= RGB_MATRIX_LED_COUNT) break;
-                uint8_t* rgb = &(data[3]);
 
-                rgb_matrix_set_color(index, rgb[0], rgb[1], rgb[2]);
+                uint8_t* rgb = &(data[3]);
+                memcpy(frame[index], rgb, 3 * sizeof(uint8_t));
 
                 break;
             }
@@ -114,13 +122,14 @@ void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
             case id_custom_set_value: {
                 for(int i = 2; i < length; i += 4) {
                     if(data[i] >= WAVE_COLS) break;
-                    const uint16_t* col = cols[data[i]];
+                    const uint8_t col = data[i];
                     uint8_t* rgb = &(data[i + 1]);
 
-                    for(uint8_t j = 0; j < MATRIX_ROWS; j++) {
-                        if(col[j] > RGB_MATRIX_LED_COUNT) continue;
+                    for(uint8_t row = 0; row < MATRIX_ROWS; row++) {
+                        const uint8_t index = cols[col][row];
+                        if(index >= RGB_MATRIX_LED_COUNT) continue;
 
-                        rgb_matrix_set_color(col[j], rgb[0], rgb[1], rgb[2]);
+                        memcpy(frame[index], rgb, 3 * sizeof(uint8_t));
                     }
                 }
 
@@ -139,13 +148,14 @@ void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
         switch (*command_id) {
             case id_custom_set_value: {
                 if(data[2] >= WAVE_COLS) break;
-                const uint16_t* col = cols[data[2]];
+                const uint8_t col = data[2];
                 uint8_t* rgb = &(data[3]);
 
-                for(uint8_t i = 0; i < MATRIX_ROWS; i++) {
-                    if(col[i] > RGB_MATRIX_LED_COUNT) continue;
+                for(uint8_t row = 0; row < MATRIX_ROWS; row++) {
+                    const uint8_t index = cols[col][row];
+                    if(index >= RGB_MATRIX_LED_COUNT) continue;
 
-                    rgb_matrix_set_color(col[i], rgb[0], rgb[1], rgb[2]);
+                    memcpy(frame[index], rgb, 3 * sizeof(uint8_t));
                 }
 
                 break;
@@ -159,12 +169,21 @@ void via_custom_value_command_kb(uint8_t* data, uint8_t length) {
 
         break;
     }
+    case id_custom_draw_channel: {
+        for(uint16_t i = 0; i < MATRIX_COLS * MATRIX_ROWS; i++) {
+            uint8_t* rgb = frame[i];
+            rgb_matrix_set_color(i, rgb[0], rgb[1], rgb[2]);
+        }
+
+        break;
+    }
     default:
         *command_id = id_unhandled;
 
         break;
     }
 }
+
 ```
 
 create a new file called rgb_matrix_user.inc in the folder containing keymap.c
