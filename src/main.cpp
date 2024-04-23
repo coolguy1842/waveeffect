@@ -116,6 +116,21 @@ int main() {
 
         while(wave->updaterThreadRunning()) {
             bool isOn = VirtUtils::VirtualMachineOn(con, "win10");
+
+            if(keyboard->keypressStartTimes.find(KEY_RIGHTALT) != keyboard->keypressStartTimes.end()) {
+                if(time(NULL) - keyboard->keypressStartTimes[KEY_RIGHTALT] > 3) {
+                    VirtUtils::toggleVM(con, "win10");
+
+                    // stop vm from being toggled until a repress
+                    auto it = keyboard->keypressStartTimes.find(KEY_RIGHTALT);
+                    // stop race condition
+                    if(it != keyboard->keypressStartTimes.end()) {
+
+                        keyboard->keypressStartTimes.erase(it);
+                    }
+                }
+            }
+
             if(isOn) {
                 keyboard->unset_custom_led(14);
             }

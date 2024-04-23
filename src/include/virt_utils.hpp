@@ -46,29 +46,36 @@ public:
 
 namespace VirtUtils {
     static bool VirtualMachineOn(VirtConnection& con, const char* VM) {
-        virDomainPtr* domains;
-        int ret = con.getDomains(&domains);
+        virDomainPtr domain = virDomainLookupByName(con.getConnection(), VM);
 
-        for(int i = 0; i < ret; i++) {
-            virDomainInfo domainInfo;
-            if(virDomainGetInfo(domains[i], &domainInfo) < 0) {
-                fprintf(stderr, "Failed to Get the Domain Info\n");
-                continue;
-            }
+        virDomainInfo info;
+        virDomainGetInfo(domain, &info);
 
-            if(strcmp(virDomainGetName(domains[i]), VM) == 0) {
-                switch(domainInfo.state) {
-                case VIR_DOMAIN_RUNNING: return true;
-                default: return false;
-                }
-            }
-
-            virDomainFree(domains[i]);
+        bool returnValue;
+        switch(info.state) {
+        case VIR_DOMAIN_RUNNING: returnValue = true; break;
+        default: returnValue = false; break;
         }
 
-        free(domains);
+        virDomainFree(domain);
+        return returnValue;
+    }
 
-        return false;
+    static void toggleVM(VirtConnection& con, const char* VM) {
+        virDomainPtr domain = virDomainLookupByName(con.getConnection(), VM);
+
+        virDomainInfo info;
+        virDomainGetInfo(domain, &info);
+
+        printf("%u\n", info.state);
+        switch(info.state) {
+        case VIR_DOMAIN_RUNNING: virDomainShutdown(domain); break;
+        case VIR_DOMAIN_PAUSED: virDomainResume(domain); break;
+        case VIR_DOMAIN_SHUTDOWN: case VIR_DOMAIN_SHUTOFF: virDomainCreate(domain); break;
+        default: break;
+        }
+
+        virDomainFree(domain);
     }
 
 };
