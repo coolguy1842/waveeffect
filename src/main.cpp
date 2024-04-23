@@ -28,7 +28,7 @@ void keyboardWaveUpdater(KeychronV6* keyboard) {
 
         keyboard->draw_frame();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000/30));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000/15));
         frame++;
     }
 }
@@ -47,11 +47,19 @@ void mouseWaveUpdater(Rival600* mouse) {
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000/30));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000/15));
     }
 }
 
+void onSIGINT(int) {
+    printf("SIGINT RECEIVED! SHUTTING DOWN...\n");
+
+    wave->stopUpdaterThread();
+}
+
 void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpdaterThread, std::thread* mouseWaveUpdaterThread, std::thread* virtCheckerThread) {
+    signal(SIGINT, onSIGINT);
+
     keyboardWaveUpdaterThread->join();
     mouseWaveUpdaterThread->join();
 
@@ -78,12 +86,6 @@ void cleanup(KeychronV6* keyboard, Rival600* mouse, std::thread* keyboardWaveUpd
     hid_exit();
 }
 
-
-void onSIGINT(int) {
-    printf("SIGINT RECEIVED! SHUTTING DOWN...\n");
-
-    wave->stopUpdaterThread();
-}
 
 int main() {
     signal(SIGINT, onSIGINT);
@@ -121,7 +123,7 @@ int main() {
                 keyboard->set_custom_led(14, { 69, 3, 1 });
             }
 
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
     }, keyboard);

@@ -70,6 +70,16 @@ private:
     std::map<uint8_t, RGB> framebuffer;
     std::map<uint8_t, RGB> emptyFramebuffer;
 
+
+    void onDeviceEvent(struct libevdev* device, struct input_event* event) {
+        printf(
+            "Event: %s %s %d\n",
+            libevdev_event_type_get_name(event->type),
+            libevdev_event_code_get_name(event->type, event->code),
+            event->value
+        );
+    }
+
 public:
     KeychronV6() : Keyboard(0x3434, 0x0361, 0xFF60, 0x61, KeychronV6LEDS, [this]() -> void {
         this->set_effect();
@@ -178,15 +188,21 @@ public:
         std::vector<uint8_t> unformattedPayload = getUnformattedPayload(framebuffer);
         for(std::vector<uint8_t> payload : getPayloads(unformattedPayload, id_custom_set_value, id_custom_array_col_channel)) {
             if(hid_write(device, payload.data(), payload.size() * sizeof(uint8_t)) == -1) {
+                deviceMutex.unlock();
                 return;
             }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         unformattedPayload = getUnformattedPayload(custom_leds);
         for(std::vector<uint8_t> payload : getPayloads(unformattedPayload, id_custom_set_value, id_custom_array_led_channel)) {
             if(hid_write(device, payload.data(), payload.size() * sizeof(uint8_t)) == -1) {
+                deviceMutex.unlock();
                 return;
             }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         hid_write(device, DRAW_PACKET, (KeychronV6PayloadLength + 1) * sizeof(uint8_t));

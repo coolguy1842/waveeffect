@@ -9,6 +9,7 @@ executable(
     ]),
     dependencies: [
         dependency('hidapi'),
-        dependency('libvirt')
+        dependency('libvirt'),
+        dependency('libevdev')
     ]
 )
