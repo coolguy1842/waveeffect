@@ -147,8 +147,6 @@ protected:
                     continue;
                 }
 
-                printf("%u\n", event);
-
                 fileDescriptors.push_back(fd);
             }
 
@@ -170,7 +168,7 @@ protected:
                             }
                         }
                         else if(rc == 0) {
-                            std::this_thread::yield();
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1));
                         }
                     }
                     while ((rc == 1 || rc == 0 || rc == -EAGAIN) && backgroundEvdevThreadActive);

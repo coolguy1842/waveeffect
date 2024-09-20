@@ -124,8 +124,8 @@ public:
                 for(size_t i = 0; i < rowsLen; i++) {
                     rows[i].update(addHSV);
                 }
-
-                usleep(1000 * (1000 / refreshRate));
+                
+                std::this_thread::sleep_for(std::chrono::milliseconds((int)(1000 / refreshRate)));
             }
         });
     }

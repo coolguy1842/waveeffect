@@ -42,8 +42,7 @@ void cleanup(KeychronV6* keyboard, std::thread* keyboardWaveUpdaterThread, std::
     signal(SIGINT, onSIGINT);
 
     keyboardWaveUpdaterThread->join();
-
-    usleep(1000 * 100);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     for(std::pair<const uint8_t, RGB> pair : keyboard->get_custom_leds()) {
         keyboard->unset_custom_led(pair.first);
@@ -65,14 +64,14 @@ int main() {
 
     KeychronV6* keyboard = new KeychronV6();
 
-
     size_t maxKeyboardRows = 0;
-
     for(size_t i = 0; i < keyboard->leds.size(); i++) {
-        if(keyboard->leds[i].size() > maxKeyboardRows) maxKeyboardRows = keyboard->leds[i].size();
+        if(keyboard->leds[i].size() > maxKeyboardRows) {
+            maxKeyboardRows = keyboard->leds[i].size();
+        }
     }
 
-    wave = new Wave(maxKeyboardRows, {240, 1, 1}, {284, 1, 1}, 120, WaveDirection::WAVELEFT);
+    wave = new Wave(maxKeyboardRows, {240, 1, 1}, {284, 1, 1}, 60, WaveDirection::WAVELEFT);
     wave->startUpdaterThread(0.15);
 
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
@@ -90,7 +89,6 @@ int main() {
                     auto it = keyboard->keypressStartTimes.find(KEY_RIGHTALT);
                     // stop race condition
                     if(it != keyboard->keypressStartTimes.end()) {
-
                         keyboard->keypressStartTimes.erase(it);
                     }
                 }
@@ -105,7 +103,6 @@ int main() {
 
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
-
     }, keyboard);
 
     cleanup(keyboard, &keyboardWaveUpdaterThread, &virtCheckerThread);
