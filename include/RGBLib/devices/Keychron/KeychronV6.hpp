@@ -7,6 +7,8 @@
 #include <hidapi/hidapi.h>
 #include <cmath>
 
+#include <algorithm>
+
 #include <map>
 #include <list>
 #include <vector>
