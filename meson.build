@@ -11,5 +11,6 @@ executable(
         dependency('hidapi'),
         dependency('libvirt'),
         dependency('libevdev')
-    ]
+    ],
+    install: true 
 )
