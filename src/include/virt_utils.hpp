@@ -47,6 +47,9 @@ public:
 namespace VirtUtils {
     static bool VirtualMachineOn(VirtConnection& con, const char* VM) {
         virDomainPtr domain = virDomainLookupByName(con.getConnection(), VM);
+        if(domain == nullptr) {
+            return false;
+        }
 
         virDomainInfo info;
         virDomainGetInfo(domain, &info);

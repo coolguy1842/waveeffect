@@ -1,3 +1,4 @@
+#include <cstring>
 #include <stdio.h>
 #include <RGBLib/devices/Keychron/KeychronV6.hpp>
 
@@ -58,7 +59,6 @@ void cleanup(KeychronV6* keyboard, std::thread* keyboardWaveUpdaterThread, std::
     hid_exit();
 }
 
-
 int main() {
     signal(SIGINT, onSIGINT);
 
@@ -77,13 +77,47 @@ int main() {
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread virtCheckerThread([](KeychronV6* keyboard) -> void {
         VirtConnection con = VirtConnection("qemu:///system");
+        
+        const char* TARGET_VM_NAME = "windows";
 
+        auto hasDomain = [TARGET_VM_NAME, &con]() {
+            
+            virDomainPtr* domains;
+            int numDomains = con.getDomains(&domains);
+
+            bool hasDomain = false;
+            for(int i = 0; i < numDomains; i++) {
+                const char* name = virDomainGetName(domains[i]);
+
+                virDomainFree(domains[i]);
+                if(strcmp(name, TARGET_VM_NAME) == 0) {
+                    hasDomain = true;
+                }
+            }
+
+            free(domains);
+
+            return hasDomain;
+        };
+
+
+        bool firstWithoutDomain = true;
         while(wave->updaterThreadRunning()) {
-            bool isOn = VirtUtils::VirtualMachineOn(con, "win10");
+            if(!hasDomain()) {
+                if(firstWithoutDomain) {
+                    printf("windows vm not found.\n");
+                    firstWithoutDomain = false;
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+                continue;
+            }
+    
+            bool isOn = VirtUtils::VirtualMachineOn(con, TARGET_VM_NAME);
 
             if(keyboard->keypressStartTimes.find(KEY_RIGHTALT) != keyboard->keypressStartTimes.end()) {
                 if(time(NULL) - keyboard->keypressStartTimes[KEY_RIGHTALT] > 3) {
-                    VirtUtils::toggleVM(con, "win10");
+                    VirtUtils::toggleVM(con, TARGET_VM_NAME);
 
                     // stop vm from being toggled until a repress
                     auto it = keyboard->keypressStartTimes.find(KEY_RIGHTALT);
@@ -102,6 +136,7 @@ int main() {
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            firstWithoutDomain = true;
         }
     }, keyboard);
 

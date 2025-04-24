@@ -1,6 +1,10 @@
 .vscode
+.direnv
+.cache
 build
 builddir
+
+compile_commands.json
 
 build.bat
 build.sh

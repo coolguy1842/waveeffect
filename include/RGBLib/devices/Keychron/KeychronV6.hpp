@@ -131,7 +131,7 @@ private:
     }
 
 public:
-    KeychronV6() : Keyboard(0x3434, 0x0361, 0xFF60, 0x61, KeychronV6LEDS, [this]() -> void {
+    KeychronV6() : Keyboard(0x3434, 0x0361, 0xFF60, 0x0061, KeychronV6LEDS, [this]() -> void {
         this->set_effect();
     }) {
         emptyFramebuffer = {};
