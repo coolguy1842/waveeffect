@@ -76,43 +76,25 @@ int main() {
 
     std::thread keyboardWaveUpdaterThread(keyboardWaveUpdater, keyboard);
     std::thread virtCheckerThread([](KeychronV6* keyboard) -> void {
-        VirtConnection con = VirtConnection("qemu:///system");
-        
         const char* TARGET_VM_NAME = "windows";
 
-        auto hasDomain = [TARGET_VM_NAME, &con]() {
-            
-            virDomainPtr* domains;
-            int numDomains = con.getDomains(&domains);
-
-            bool hasDomain = false;
-            for(int i = 0; i < numDomains; i++) {
-                const char* name = virDomainGetName(domains[i]);
-
-                virDomainFree(domains[i]);
-                if(strcmp(name, TARGET_VM_NAME) == 0) {
-                    hasDomain = true;
-                }
-            }
-
-            free(domains);
-
-            return hasDomain;
-        };
-
-
+        VirtConnection con = VirtConnection("qemu:///system");
         bool firstWithoutDomain = true;
+        
         while(wave->updaterThreadRunning()) {
-            if(!hasDomain()) {
+            if(!VirtUtils::hasVM(con, TARGET_VM_NAME)) {
                 if(firstWithoutDomain) {
                     printf("windows vm not found.\n");
                     firstWithoutDomain = false;
+                    
+                    keyboard->unset_custom_led(14);
                 }
-
+                
                 std::this_thread::sleep_for(std::chrono::milliseconds(10000));
                 continue;
             }
-    
+
+            firstWithoutDomain = true;
             bool isOn = VirtUtils::VirtualMachineOn(con, TARGET_VM_NAME);
 
             if(keyboard->keypressStartTimes.find(KEY_RIGHTALT) != keyboard->keypressStartTimes.end()) {

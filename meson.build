@@ -1,7 +1,7 @@
 project('waveeffect', 'cpp')
 
 executable(
-    'wave',
+    'waveeffect',
     'src/main.cpp',
     include_directories: include_directories([
         'include',

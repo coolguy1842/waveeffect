@@ -81,6 +81,25 @@ namespace VirtUtils {
         virDomainFree(domain);
     }
 
+    static bool hasVM(VirtConnection& con, const char* VM) {
+        virDomainPtr* domains;
+        int numDomains = con.getDomains(&domains);
+
+        bool hasDomain = false;
+        for(int i = 0; i < numDomains; i++) {
+            const char* name = virDomainGetName(domains[i]);
+            
+            if(strcmp(name, VM) == 0) {
+                hasDomain = true;
+            }
+
+            virDomainFree(domains[i]);
+        }
+
+        free(domains);
+        
+        return hasDomain;
+    }
 };
 
 #endif
